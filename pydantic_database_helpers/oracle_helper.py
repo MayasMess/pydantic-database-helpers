@@ -1,5 +1,5 @@
 import abc
-from typing import List, Optional, Type, TypeVar
+from typing import List, Optional, Type, TypeVar, Generator
 
 from oracledb import makedsn, connect
 from pydantic import BaseModel
@@ -145,6 +145,41 @@ class OracleHelper(DatabaseHelper, OracleQueryHelper):
                 session.rollback()
                 raise e
 
+    def select_in_batches(
+            self,
+            model: Type[T],
+            where: Optional[str] = None,
+            chunksize: int = 100
+    ) -> Generator[List[T], None, None]:
+        """
+        Récupère les résultats en paquets (batches), avec une taille de paquet spécifiée.
+
+        :param model: Le modèle Pydantic à utiliser pour les objets de résultat.
+        :param where: Condition WHERE optionnelle pour filtrer les résultats.
+        :param chunksize: Taille des paquets de données à récupérer.
+        :return: Un générateur qui produit des listes de modèles de taille chunksize.
+        """
+        query = self.generate_select_query(model, where)
+        with self.connection.cursor() as cursor:
+            try:
+                # Exécute la requête avec la récupération en paquets
+                cursor.execute(query)
+                while True:
+                    # Récupère un paquet de résultats
+                    result_chunk = cursor.fetchmany(chunksize)
+                    if not result_chunk:
+                        break  # Arrête si aucun autre résultat à récupérer
+
+                    # Map les résultats du chunk en instances du modèle
+                    column_names = [field_name for field_name in model.model_fields.keys()]
+                    chunk = [model(**dict(zip(column_names, row))) for row in result_chunk]
+
+                    yield chunk
+            except Exception as e:
+                print(f"Erreur lors de l'exécution de la requête dans la base de données : {e}")
+                self.connection.rollback()
+                raise e
+
     def _execute(self, query: str, values):
         with Session(self.engine) as session:
             try:
@@ -174,7 +209,7 @@ class OracleHelper(DatabaseHelper, OracleQueryHelper):
                 print("Engine fermé.")
 
             # Fermer la connexion à la base de données
-            if self.connection:
+            if self.connection and self.connection.is_healthy():
                 self.connection.close()
                 print("Connexion à la base de données fermée.")
         except Exception as e:
