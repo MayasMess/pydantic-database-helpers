@@ -1,5 +1,5 @@
 import abc
-from typing import Type, List
+from typing import Type, List, Optional
 
 from pydantic import BaseModel
 
@@ -23,6 +23,11 @@ class DatabaseQueryHelperABC(abc.ABC):
     @classmethod
     @abc.abstractmethod
     def generate_update_query(cls, model: Type[BaseModel], using: List[str]) -> str:
+        pass
+
+    @classmethod
+    @abc.abstractmethod
+    def generate_select_query(cls, model: Type[BaseModel], where: Optional[str] = None) -> str:
         pass
 
 
@@ -130,5 +135,25 @@ class OracleQueryHelper(DatabaseQueryHelperABC):
 
         # Construire la requête `UPDATE`
         query = f"UPDATE {table_name} SET {set_clause} WHERE {where_conditions}"
+
+        return query.strip()
+
+    @classmethod
+    def generate_select_query(cls, model: Type[BaseModel], where: Optional[str] = None) -> str:
+        try:
+            table_name = model.__TABLE_NAME__
+        except AttributeError:
+            raise AttributeError("Le modèle doit avoir un attribut __TABLE_NAME__")
+
+        # Récupérer les champs du modèle
+        fields = model.model_fields.keys()
+        columns = ", ".join(fields)
+
+        # Construire la requête de base
+        query = f"SELECT {columns} FROM {table_name}"
+
+        # Ajouter la clause WHERE si spécifiée
+        if where:
+            query += f" WHERE {where}"
 
         return query.strip()

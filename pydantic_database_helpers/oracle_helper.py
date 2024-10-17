@@ -1,5 +1,5 @@
 import abc
-from typing import List
+from typing import List, Optional, Type, TypeVar
 
 from oracledb import makedsn, connect
 from pydantic import BaseModel
@@ -7,6 +7,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from pydantic_database_helpers.query_helper import OracleQueryHelper
+
+T = TypeVar('T', bound=BaseModel)
 
 
 class DatabaseHelper(abc.ABC):
@@ -40,6 +42,14 @@ class DatabaseHelper(abc.ABC):
 
     @abc.abstractmethod
     def update_all(self, records: List[BaseModel], using: List[str]) -> None:
+        pass
+
+    @abc.abstractmethod
+    def select_one(self, model: Type[T], where: Optional[str]) -> T:
+        pass
+
+    @abc.abstractmethod
+    def select_all(self, model: Type[T], where: Optional[str]) -> List[T]:
         pass
 
     @abc.abstractmethod
@@ -105,6 +115,35 @@ class OracleHelper(DatabaseHelper, OracleQueryHelper):
         query = self.generate_update_query(type(records[0]), using)
         values = [r.model_dump(exclude_unset=True) for r in records]
         self._executemany(query, values)
+
+    def select_one(self, model: Type[T], where: Optional[str] = None) -> Optional[T]:
+        query = self.generate_select_query(model, where)
+        with Session(self.engine) as session:
+            try:
+                result = session.execute(text(query)).fetchone()
+                if result:
+                    column_names = [field_name for field_name in model.model_fields.keys()]
+                    result_dict = dict(zip(column_names, result))
+                    return model(**result_dict)
+                return None
+            except Exception as e:
+                print(f"Erreur lors de l'execution de la requête dans la base de données : {e}")
+                session.rollback()
+                raise e
+
+    def select_all(self, model: Type[T], where: Optional[str] = None) -> List[T]:
+        query = self.generate_select_query(model, where)
+        with Session(self.engine) as session:
+            try:
+                result = session.execute(text(query)).fetchall()
+                if result:
+                    column_names = [field_name for field_name in model.model_fields.keys()]
+                    return [model(**dict(zip(column_names, r))) for r in result]
+                return []
+            except Exception as e:
+                print(f"Erreur lors de l'execution de la requête dans la base de données : {e}")
+                session.rollback()
+                raise e
 
     def _execute(self, query: str, values):
         with Session(self.engine) as session:

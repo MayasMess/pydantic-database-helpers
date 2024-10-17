@@ -425,3 +425,166 @@ def test_update_all_integration():
             session.commit()
 
     oracle_helper.clean_up()
+
+
+def test_select_integration():
+    oracle_helper = try_oracle_connection()
+    if oracle_helper is None:
+        return
+
+    # Création d'un enregistrement valide
+    record = SimpleTable(
+        id=13,
+        name="Test Name",
+        created_at="2024-10-17 12:00:00",
+        updated_at="2024-10-17 12:00:00",
+        is_active=True,
+        salary=1000.00,
+        birth_date="1990-01-01",
+        decimal_value=1234.56
+    )
+
+    # Insertion de l'enregistrement dans la base de données
+    oracle_helper.insert(record)
+
+    # Vérification que les données ont été insérées
+    with Session(oracle_helper.engine) as session:
+        result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
+        row = result.fetchone()
+
+        assert row is not None
+        assert row[0] == record.id
+        assert row[1] == record.name
+        assert row[2] == datetime(2024, 10, 17, 12, 0, 0)
+        assert row[3] == datetime(2024, 10, 17, 12, 0, 0)
+        assert row[4] == int(record.is_active)  # Convertir en entier pour le test
+        assert row[5] == record.salary
+        assert row[6] == datetime(1990, 1, 1, 0, 0)
+        assert row[7] == record.decimal_value
+
+    res = oracle_helper.select_one(SimpleTable)
+    assert res == record
+
+    with Session(oracle_helper.engine) as session:
+        session.execute(text("DELETE FROM simple_table WHERE id = :id"), {'id': record.id})
+        session.commit()
+    oracle_helper.clean_up()
+
+
+def test_select_all_integration():
+    oracle_helper = try_oracle_connection()
+    if oracle_helper is None:
+        return
+
+    records = [
+        SimpleTable(id=14, name="Test Name 2", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
+                    is_active=True, salary=2000.00, birth_date="1991-01-01", decimal_value=2345.67),
+        SimpleTable(id=15, name="Test Name 3", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
+                    is_active=False, salary=3000.00, birth_date="1992-01-01", decimal_value=3456.78)
+    ]
+
+    oracle_helper.insert_all(records)
+
+    # Vérification que les données ont été insérées
+    with Session(oracle_helper.engine) as session:
+        for record in records:
+            result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
+            row = result.fetchone()
+
+            assert row is not None
+            assert row[0] == record.id
+            assert row[1] == record.name
+            assert row[2] == datetime(2024, 10, 17, 12, 0, 0)
+            assert row[3] == datetime(2024, 10, 17, 12, 0, 0)
+            assert row[4] == int(record.is_active)  # Convertir en entier pour le test
+            assert row[5] == record.salary
+            assert row[6] == datetime(1991, 1, 1) if record.id == 2 else datetime(1992, 1, 1)
+            assert row[7] == record.decimal_value
+
+    res = oracle_helper.select_all(SimpleTable)
+    assert res == records
+    with Session(oracle_helper.engine) as session:
+        session.execute(text("DELETE FROM simple_table WHERE id in (14, 15)"))
+        session.commit()
+
+    oracle_helper.clean_up()
+
+
+def test_select_with_where_clause_integration():
+    oracle_helper = try_oracle_connection()
+    if oracle_helper is None:
+        return
+
+    records = [
+        SimpleTable(id=16, name="Test Name 2", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
+                    is_active=True, salary=2000.00, birth_date="1991-01-01", decimal_value=2345.67),
+        SimpleTable(id=17, name="Test Name 3", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
+                    is_active=False, salary=3000.00, birth_date="1992-01-01", decimal_value=3456.78)
+    ]
+
+    oracle_helper.insert_all(records)
+
+    # Vérification que les données ont été insérées
+    with Session(oracle_helper.engine) as session:
+        for record in records:
+            result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
+            row = result.fetchone()
+
+            assert row is not None
+            assert row[0] == record.id
+            assert row[1] == record.name
+            assert row[2] == datetime(2024, 10, 17, 12, 0, 0)
+            assert row[3] == datetime(2024, 10, 17, 12, 0, 0)
+            assert row[4] == int(record.is_active)  # Convertir en entier pour le test
+            assert row[5] == record.salary
+            assert row[6] == datetime(1991, 1, 1) if record.id == 2 else datetime(1992, 1, 1)
+            assert row[7] == record.decimal_value
+
+    res = oracle_helper.select_one(SimpleTable, where="name = 'Test Name 2' and id = 16")
+    assert res == records[0]
+    with Session(oracle_helper.engine) as session:
+        session.execute(text("DELETE FROM simple_table WHERE id in (16, 17)"))
+        session.commit()
+
+    oracle_helper.clean_up()
+
+
+def test_select_all_with_where_clause_integration():
+    oracle_helper = try_oracle_connection()
+    if oracle_helper is None:
+        return
+
+    records = [
+        SimpleTable(id=18, name="Test Name WHERE CLAUSE 2", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
+                    is_active=True, salary=2000.00, birth_date="1991-01-01", decimal_value=2345.67),
+        SimpleTable(id=19, name="Test Name WHERE CLAUSE 2", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
+                    is_active=False, salary=3000.00, birth_date="1992-01-01", decimal_value=3456.78),
+        SimpleTable(id=20, name="Test Name 3", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
+                    is_active=False, salary=3000.00, birth_date="1992-01-01", decimal_value=3456.78)
+    ]
+
+    oracle_helper.insert_all(records)
+
+    # Vérification que les données ont été insérées
+    with Session(oracle_helper.engine) as session:
+        for record in records:
+            result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
+            row = result.fetchone()
+
+            assert row is not None
+            assert row[0] == record.id
+            assert row[1] == record.name
+            assert row[2] == datetime(2024, 10, 17, 12, 0, 0)
+            assert row[3] == datetime(2024, 10, 17, 12, 0, 0)
+            assert row[4] == int(record.is_active)  # Convertir en entier pour le test
+            assert row[5] == record.salary
+            assert row[6] == datetime(1991, 1, 1) if record.id == 2 else datetime(1992, 1, 1)
+            assert row[7] == record.decimal_value
+
+    res = oracle_helper.select_all(SimpleTable, where="name = 'Test Name WHERE CLAUSE 2'")
+    assert res == records[:2]
+    with Session(oracle_helper.engine) as session:
+        session.execute(text("DELETE FROM simple_table WHERE id in (18, 19, 20)"))
+        session.commit()
+
+    oracle_helper.clean_up()

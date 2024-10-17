@@ -20,3 +20,10 @@ class SimpleTable(BaseModel):
 class NoTableNameModel(BaseModel):
     id: int
     name: str
+
+
+class DummyModel(BaseModel):
+    __TABLE_NAME__: ClassVar[str] = "test_table"
+    id: int
+    name: Optional[str]
+    age: Optional[int]

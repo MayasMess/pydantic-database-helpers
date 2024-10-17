@@ -6,7 +6,7 @@ import pytest
 from pydantic import BaseModel
 
 from pydantic_database_helpers.query_helper import OracleQueryHelper
-from tests.models import SimpleTable, NoTableNameModel
+from tests.models import SimpleTable, NoTableNameModel, DummyModel
 
 
 # Classe de test pour hériter de DatabaseQueryHelperABC pour les tests
@@ -260,3 +260,44 @@ def test_generate_update_query_all_fields_in_using():
 
     with pytest.raises(ValueError, match="Aucun champ à mettre à jour après exclusion des champs 'using'"):
         OracleQueryHelper.generate_update_query(SimpleTable, using=using_fields)
+
+
+def test_generate_select_query_no_where():
+    # Test pour une requête sans clause WHERE
+    expected_query = "SELECT id, name, age FROM test_table"
+    query = OracleQueryHelper.generate_select_query(DummyModel)
+    assert query == expected_query
+
+
+def test_generate_select_query_with_where():
+    # Test pour une requête avec une clause WHERE
+    expected_query = "SELECT id, name, age FROM test_table WHERE age > 30"
+    query = OracleQueryHelper.generate_select_query(DummyModel, where="age > 30")
+    assert query == expected_query
+
+
+def test_generate_select_query_with_multiple_where():
+    # Test pour une requête avec une clause WHERE
+    expected_query = "SELECT id, name, age FROM test_table WHERE age > 30 and name = 'hello'"
+    query = OracleQueryHelper.generate_select_query(DummyModel, where="age > 30 and name = 'hello'")
+    assert query == expected_query
+
+
+def test_generate_select_query_no_table_name():
+    # Test pour vérifier le comportement quand le modèle n'a pas de __TABLE_NAME__
+    class InvalidModel(BaseModel):
+        id: int
+        name: Optional[str]
+
+    with pytest.raises(AttributeError, match="Le modèle doit avoir un attribut __TABLE_NAME__"):
+        OracleQueryHelper.generate_select_query(InvalidModel)
+
+
+def test_generate_select_query_no_fields():
+    # Test pour un modèle sans champs (rare mais possible)
+    class EmptyModel(BaseModel):
+        __TABLE_NAME__: str = "empty_table"
+
+    expected_query = "SELECT  FROM empty_table"
+    query = OracleQueryHelper.generate_select_query(EmptyModel)
+    assert query == expected_query
