@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "pydantic-database-helpers"
+version = "0.1.0"
+description = ""
+authors = ["MayasMess <test>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pydantic = "^2.9.2"
+oracledb = "^2.4.1"
+sqlalchemy = "^2.0.36"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
