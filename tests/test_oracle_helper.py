@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from pydantic_database_helpers.oracle_helper import OracleHelper
+from pydantic_database_helpers.database_helper import OracleHelper
 from tests.models import SimpleTable
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,6 @@ def test_insert_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement valide
     record = SimpleTable(
         id=1,
         name="Test Name",
@@ -36,10 +35,8 @@ def test_insert_integration():
         decimal_value=1234.56
     )
 
-    # Insertion de l'enregistrement dans la base de données
     oracle_helper.insert(record)
 
-    # Vérification que les données ont été insérées
     with Session(oracle_helper.engine) as session:
         result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
         row = result.fetchone()
@@ -73,7 +70,6 @@ def test_insert_all_integration():
 
     oracle_helper.insert_all(records)
 
-    # Vérification que les données ont été insérées
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
@@ -100,7 +96,6 @@ def test_upsert_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement à insérer
     record = SimpleTable(
         id=4,
         name="John Doe",
@@ -112,10 +107,8 @@ def test_upsert_integration():
         decimal_value=123.45
     )
 
-    # Exécuter l'upsert (insertion)
     oracle_helper.upsert(record, using=["id"])
 
-    # Vérification que l'enregistrement a été inséré
     with Session(oracle_helper.engine) as session:
         result = session.execute(
             text("SELECT * FROM simple_table WHERE id = :id"), {"id": record.id}
@@ -159,7 +152,6 @@ def test_upsert_all_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement à insérer
     records = [
         SimpleTable(id=5, name="Test Name 2", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
                     is_active=True, salary=2000.00, birth_date="1991-01-01", decimal_value=2345.67),
@@ -167,10 +159,8 @@ def test_upsert_all_integration():
                     is_active=False, salary=3000.00, birth_date="1992-01-01", decimal_value=3456.78)
     ]
 
-    # Exécuter l'upsert (insertion)
     oracle_helper.upsert_all(records, using=["id"])
 
-    # Vérification que l'enregistrement a été inséré
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(
@@ -217,7 +207,6 @@ def test_delete_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement à insérer
     record = SimpleTable(
         id=7,
         name="John Doe",
@@ -229,10 +218,8 @@ def test_delete_integration():
         decimal_value=123.45
     )
 
-    # Exécuter l'upsert (insertion)
     oracle_helper.insert(record)
 
-    # Vérification que l'enregistrement a été inséré
     with Session(oracle_helper.engine) as session:
         result = session.execute(
             text("SELECT * FROM simple_table WHERE id = :id"), {"id": record.id}
@@ -267,7 +254,6 @@ def test_delete_all_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement à insérer
     records = [
         SimpleTable(id=8, name="Test Name 2", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
                     is_active=True, salary=2000.00, birth_date="1991-01-01", decimal_value=2345.67),
@@ -275,10 +261,8 @@ def test_delete_all_integration():
                     is_active=False, salary=3000.00, birth_date="1992-01-01", decimal_value=3456.78)
     ]
 
-    # Exécuter l'upsert (insertion)
     oracle_helper.insert_all(records)
 
-    # Vérification que l'enregistrement a été inséré
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(
@@ -315,7 +299,6 @@ def test_update_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement à insérer
     record = SimpleTable(
         id=10,
         name="John Doe",
@@ -327,10 +310,8 @@ def test_update_integration():
         decimal_value=123.45
     )
 
-    # Exécuter l'upsert (insertion)
     oracle_helper.insert(record)
 
-    # Vérification que l'enregistrement a été inséré
     with Session(oracle_helper.engine) as session:
         result = session.execute(
             text("SELECT * FROM simple_table WHERE id = :id"), {"id": record.id}
@@ -374,7 +355,6 @@ def test_update_all_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement à insérer
     records = [
         SimpleTable(id=11, name="Test Name 2", created_at="2024-10-17 12:00:00", updated_at="2024-10-17 12:00:00",
                     is_active=True, salary=2000.00, birth_date="1991-01-01", decimal_value=2345.67),
@@ -382,10 +362,8 @@ def test_update_all_integration():
                     is_active=False, salary=3000.00, birth_date="1992-01-01", decimal_value=3456.78)
     ]
 
-    # Exécuter l'upsert (insertion)
     oracle_helper.insert_all(records)
 
-    # Vérification que l'enregistrement a été inséré
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(
@@ -432,7 +410,6 @@ def test_select_integration():
     if oracle_helper is None:
         return
 
-    # Création d'un enregistrement valide
     record = SimpleTable(
         id=13,
         name="Test Name",
@@ -444,10 +421,8 @@ def test_select_integration():
         decimal_value=1234.56
     )
 
-    # Insertion de l'enregistrement dans la base de données
     oracle_helper.insert(record)
 
-    # Vérification que les données ont été insérées
     with Session(oracle_helper.engine) as session:
         result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
         row = result.fetchone()
@@ -485,7 +460,6 @@ def test_select_all_integration():
 
     oracle_helper.insert_all(records)
 
-    # Vérification que les données ont été insérées
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
@@ -524,7 +498,6 @@ def test_select_with_where_clause_integration():
 
     oracle_helper.insert_all(records)
 
-    # Vérification que les données ont été insérées
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
@@ -565,7 +538,6 @@ def test_select_all_with_where_clause_integration():
 
     oracle_helper.insert_all(records)
 
-    # Vérification que les données ont été insérées
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})
@@ -612,7 +584,6 @@ def test_select_in_batches_integration():
 
     oracle_helper.insert_all(records)
 
-    # Vérification que les données ont été insérées
     with Session(oracle_helper.engine) as session:
         for record in records:
             result = session.execute(text("SELECT * FROM simple_table WHERE id = :id"), {'id': record.id})

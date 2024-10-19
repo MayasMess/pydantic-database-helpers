@@ -5,8 +5,8 @@ from typing import Optional, ClassVar
 import pytest
 from pydantic import BaseModel
 
-from pydantic_database_helpers.query_helper import OracleQueryHelper
-from tests.models import SimpleTable, NoTableNameModel, DummyModel
+from pydantic_database_helpers.query_helper import OracleQueryHelper, MISSING_TABLE_NAME_ATTR_MSG, EMPTY_USING_MSG
+from tests.models import SimpleTable, NoTableNameModel, DummyModel, ExampleModel
 
 
 # Classe de test pour hériter de DatabaseQueryHelperABC pour les tests
@@ -115,7 +115,7 @@ def test_generate_upsert_query_valid():
 def test_generate_upsert_query_invalid_field():
     using_fields = ["id", "non_existing_field"]
 
-    with pytest.raises(ValueError, match="Le champ 'non_existing_field' n'existe pas dans le modèle SimpleTable"):
+    with pytest.raises(ValueError, match="The field 'non_existing_field' does not exist in the model SimpleTable"):
         OracleQueryHelper.generate_upsert_query(SimpleTable, using=using_fields)
 
 
@@ -126,14 +126,14 @@ def test_generate_upsert_query_missing_table_name():
 
     using_fields = ["id", "name"]
 
-    with pytest.raises(AttributeError, match="Le modèle doit avoir un attribut __TABLE_NAME__"):
+    with pytest.raises(AttributeError, match=MISSING_TABLE_NAME_ATTR_MSG):
         OracleQueryHelper.generate_upsert_query(InvalidTableModel, using=using_fields)
 
 
 def test_generate_upsert_query_empty_using_list():
     using_fields = []
 
-    with pytest.raises(ValueError, match="Aucun champ spécifié dans 'using'"):
+    with pytest.raises(ValueError, match=EMPTY_USING_MSG):
         OracleQueryHelper.generate_upsert_query(SimpleTable, using=using_fields)
 
 
@@ -184,7 +184,7 @@ def test_generate_delete_query_valid():
 def test_generate_delete_query_no_using_fields():
     using_fields = []
 
-    with pytest.raises(ValueError, match="Aucun champ spécifié dans 'using'"):
+    with pytest.raises(ValueError, match=EMPTY_USING_MSG):
         OracleQueryHelper.generate_delete_query(SimpleTable, using=using_fields)
 
 
@@ -194,7 +194,7 @@ def test_generate_delete_query_missing_table_name():
 
     using_fields = ["id"]
 
-    with pytest.raises(AttributeError, match="Le modèle doit avoir un attribut __TABLE_NAME__"):
+    with pytest.raises(AttributeError, match=MISSING_TABLE_NAME_ATTR_MSG):
         OracleQueryHelper.generate_delete_query(InvalidTableModel, using=using_fields)
 
 
@@ -244,21 +244,21 @@ def test_generate_update_query_multiple_using_fields():
 def test_generate_update_query_no_table_name():
     using_fields = ["id"]
 
-    with pytest.raises(AttributeError, match="Le modèle doit avoir un attribut __TABLE_NAME__"):
+    with pytest.raises(AttributeError, match=MISSING_TABLE_NAME_ATTR_MSG):
         OracleQueryHelper.generate_update_query(NoTableNameModel, using=using_fields)
 
 
 def test_generate_update_query_no_using_fields():
     using_fields = []
 
-    with pytest.raises(ValueError, match="Aucun champ spécifié dans 'using'"):
+    with pytest.raises(ValueError, match=EMPTY_USING_MSG):
         OracleQueryHelper.generate_update_query(SimpleTable, using=using_fields)
 
 
 def test_generate_update_query_all_fields_in_using():
     using_fields = ["id", "name", "created_at", "updated_at", "is_active", "salary", "birth_date", "decimal_value"]
 
-    with pytest.raises(ValueError, match="Aucun champ à mettre à jour après exclusion des champs 'using'"):
+    with pytest.raises(ValueError, match="No fields to update after excluding 'using' fields."):
         OracleQueryHelper.generate_update_query(SimpleTable, using=using_fields)
 
 
@@ -289,7 +289,7 @@ def test_generate_select_query_no_table_name():
         id: int
         name: Optional[str]
 
-    with pytest.raises(AttributeError, match="Le modèle doit avoir un attribut __TABLE_NAME__"):
+    with pytest.raises(AttributeError, match=MISSING_TABLE_NAME_ATTR_MSG):
         OracleQueryHelper.generate_select_query(InvalidModel)
 
 
@@ -301,3 +301,31 @@ def test_generate_select_query_no_fields():
     expected_query = "SELECT  FROM empty_table"
     query = OracleQueryHelper.generate_select_query(EmptyModel)
     assert query == expected_query
+
+
+def test_generate_select_query_valid_where():
+    where_clause = "id = 1 AND name = 'John'"
+    query = OracleQueryHelper.generate_select_query(ExampleModel, where=where_clause)
+    assert query == "SELECT id, name FROM example_table WHERE id = 1 AND name = 'John'"
+
+
+def test_generate_select_query_invalid_where():
+    # Liste de clauses WHERE dangereuses à tester
+    dangerous_clauses = [
+        "1=1; DROP TABLE users",  # Tentative de suppression de table
+        "name = 'John' --",  # Tentative de commentaire SQL
+        "name = 'John'/* Comment */",  # Tentative de commentaire en bloc
+        "id = 1; SELECT * FROM sensitive",  # Tentative de sous-requête
+        "name = 'John'; EXEC xp_cmdshell('dir')",  # Injection de commande
+    ]
+
+    for where in dangerous_clauses:
+        with pytest.raises(ValueError) as exc_info:
+            OracleQueryHelper.generate_select_query(ExampleModel, where=where)
+        assert "Clause WHERE invalid" in str(exc_info.value)
+
+
+def test_generate_select_query_empty_where():
+    # Test avec une clause WHERE vide
+    query = OracleQueryHelper.generate_select_query(ExampleModel, where="")
+    assert query == "SELECT id, name FROM example_table"

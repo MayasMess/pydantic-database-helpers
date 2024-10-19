@@ -27,3 +27,9 @@ class DummyModel(BaseModel):
     id: int
     name: Optional[str]
     age: Optional[int]
+
+
+class ExampleModel(BaseModel):
+    __TABLE_NAME__ = "example_table"
+    id: int
+    name: str
