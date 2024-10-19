@@ -2,7 +2,7 @@
 name = "pydantic-database-helpers"
 version = "0.1.0"
 description = ""
-authors = ["MayasMess <test>"]
+authors = ["Mayas Nova"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
